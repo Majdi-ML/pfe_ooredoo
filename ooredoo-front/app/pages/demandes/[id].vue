@@ -1,3 +1,4 @@
+
 <template>
   <div class="py-5 min-[1440px]:container max-[1440px]:px-4">
     <div class="rounded-md border bg-background shadow">
@@ -28,7 +29,7 @@
             </div>
           </div>
 
-          <!-- Bouton Retour et Bouton Avancer -->
+          <!-- Bouton Retour, Avancer, et Discussion -->
           <div class="mb-6 flex items-center space-x-4">
             <UiButton variant="outline" @click="navigateTo('/examples/dashboard')">
               <Icon name="lucide:arrow-left" class="mr-2 h-4 w-4" />
@@ -42,6 +43,10 @@
             >
               <Icon name="lucide:arrow-right" class="mr-2 h-4 w-4" />
               {{ nextStepLabel }}
+            </UiButton>
+            <UiButton variant="outline" @click="openDiscussion">
+              <Icon name="lucide:message-circle" class="mr-2 h-4 w-4" />
+              Voir Discussion
             </UiButton>
           </div>
 
@@ -149,7 +154,7 @@
               <UiTabsContent value="scripts">
                 <ScriptsTable :demande-id="demande.id" />
               </UiTabsContent>
-              <UiTabsContent value="traps Pamela">
+              <UiTabsContent value="traps">
                 <TrapsSnmpTable :demande-id="demande.id" />
               </UiTabsContent>
               <UiTabsContent value="urls">
@@ -164,6 +169,71 @@
             Chargement de la demande...
           </div>
         </div>
+
+        <!-- Discussion Dialog -->
+        <UiDialog v-model:open="isDiscussionOpen">
+          <UiDialogContent class="max-w-2xl">
+            <UiDialogHeader>
+              <UiDialogTitle>Discussion concernant la demande #{{ demande?.id }}</UiDialogTitle>
+              <UiDialogDescription>
+                Conversation entre {{ authStore.user?.username ?? 'Utilisateur connecté' }} et {{
+                  demande?.user?.username ?? 'Utilisateur de la demande'
+                }}
+              </UiDialogDescription>
+            </UiDialogHeader>
+            <div class="mt-4 max-h-[400px] overflow-y-auto p-4 bg-gray-50 rounded-md space-y-4">
+              <!-- Static Conversation -->
+              <div
+                class="flex flex-col items-end"
+                :class="{ 'items-start': demande?.user?.username !== authStore.user?.username }"
+              >
+                <div
+                  class="max-w-[70%] rounded-lg p-3"
+                  :class="{
+                    'bg-blue-500 text-white': authStore.user?.username === 'Utilisateur connecté',
+                    'bg-gray-200 text-gray-800': demande?.user?.username === 'Utilisateur de la demande'
+                  }"
+                >
+                  <p class="text-sm">Bonjour, j'ai remarqué un problème dans le logfile avec la référence lg-02. Pouvez-vous vérifier ?</p>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">17/06/2025 10:30</p>
+              </div>
+              <div
+                class="flex flex-col items-start"
+                :class="{ 'items-end': demande?.user?.username === authStore.user?.username }"
+              >
+                <div
+                  class="max-w-[70%] rounded-lg p-3"
+                  :class="{
+                    'bg-gray-200 text-gray-800': demande?.user?.username === 'Utilisateur de la demande',
+                    'bg-blue-500 text-white': authStore.user?.username === 'Utilisateur connecté'
+                  }"
+                >
+                  <p class="text-sm">Merci pour le signalement. Je vais vérifier le logfile lg-02 et je vous tiens au courant.</p>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">17/06/2025 10:45</p>
+              </div>
+              <div
+                class="flex flex-col items-end"
+                :class="{ 'items-start': demande?.user?.username !== authStore.user?.username }"
+              >
+                <div
+                  class="max-w-[70%] rounded-lg p-3"
+                  :class="{
+                    'bg-blue-500 text-white': authStore.user?.username === 'Utilisateur connecté',
+                    'bg-gray-200 text-gray-800': demande?.user?.username === 'Utilisateur de la demande'
+                  }"
+                >
+                  <p class="text-sm">D'accord, merci pour votre retour rapide !</p>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">17/06/2025 10:50</p>
+              </div>
+            </div>
+            <UiDialogFooter>
+              <UiButton variant="outline" @click="isDiscussionOpen = false">Fermer</UiButton>
+            </UiDialogFooter>
+          </UiDialogContent>
+        </UiDialog>
       </div>
     </div>
   </div>
@@ -172,7 +242,7 @@
 <script lang="ts" setup>
 import { useRoute, useRouter } from 'vue-router';
 import { useDemandeStore } from '~/stores/demande.store';
-import { useUserStore } from '~/stores/user.store'; // Assuming this is where your auth store is
+import { useUserStore } from '~/stores/user.store';
 import { ref, computed } from 'vue';
 import { onMounted } from 'vue';
 import { addDays, format } from 'date-fns';
@@ -191,9 +261,10 @@ import LogfilesPatternsTable from '~/components/ooredoo/ShowDemande/LogfilesPatt
 const route = useRoute();
 const router = useRouter();
 const demandeStore = useDemandeStore();
-const authStore = useUserStore(); // Auth store for role checks
+const authStore = useUserStore();
 const demande = ref<Demande | null>(null);
 const loading = ref(false);
+const isDiscussionOpen = ref(false); // Control dialog visibility
 
 // Date picker setup
 const date = ref({
@@ -219,15 +290,14 @@ const isDemandeur = computed(() => authStore.isDemandeur);
 
 // Logique pour déterminer si l'utilisateur peut avancer
 const canAdvance = computed(() => {
-  if (!demande.value || currentStatusId.value >= 5) return false; // No advancement if closed
+  if (!demande.value || currentStatusId.value >= 5) return false;
   const currentStep = workflowSteps.find(step => step.id === currentStatusId.value);
   if (!currentStep) return false;
 
-  // Transition rules
-  if (currentStep.statusName === 'new' && isAdmin.value) return true; // Nouvelle → En validation (Admin)
-  if (currentStep.statusName === 'validation' && isAdmin.value) return true; // En validation → En traitement (Admin)
-  if (currentStep.statusName === 'en traitement' && isAdmin.value) return true; // En traitement → Test (Admin)
-  if (currentStep.statusName === 'test' && isDemandeur.value) return true; // Test → Clôturée (Demandeur)
+  if (currentStep.statusName === 'new' && isAdmin.value) return true;
+  if (currentStep.statusName === 'validation' && isAdmin.value) return true;
+  if (currentStep.statusName === 'en traitement' && isAdmin.value) return true;
+  if (currentStep.statusName === 'test' && isDemandeur.value) return true;
   return false;
 });
 
@@ -246,10 +316,9 @@ const advanceDemande = async () => {
     const nextStatusId = currentStatusId.value + 1;
     const updatedDemande = { ...demande.value, status_id: nextStatusId };
     await demandeStore.updateDemande(updatedDemande);
-    demande.value = demandeStore.currentDemande; // Update local demande
+    demande.value = demandeStore.currentDemande;
   } catch (error) {
     console.error('Erreur lors de l\'avancement de la demande:', error);
-    // Error handling is already managed in updateDemande
   } finally {
     loading.value = false;
   }
@@ -271,6 +340,11 @@ const formatDate = (dateString: string) => {
     hour: '2-digit',
     minute: '2-digit',
   });
+};
+
+// Fonction pour ouvrir la discussion
+const openDiscussion = () => {
+  isDiscussionOpen.value = true;
 };
 
 // Onglets avec compteurs
@@ -352,7 +426,7 @@ ul {
 }
 
 li {
-  min-width: 100px; /* Assure un espace minimum pour chaque étape */
+  min-width: 100px;
 }
 
 @media (max-width: 640px) {
@@ -361,8 +435,27 @@ li {
     gap: 1rem;
   }
   li {
-    flex: 0 0 45%; /* Deux étapes par ligne sur petits écrans */
+    flex: 0 0 45%;
     min-width: 0;
   }
+}
+
+/* Styles pour la discussion */
+.max-h-\[400px\] {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db #f3f4f6;
+}
+
+.max-h-\[400px\]::-webkit-scrollbar {
+  width: 8px;
+}
+
+.max-h-\[400px\]::-webkit-scrollbar-track {
+  background: #f3f4f6;
+}
+
+.max-h-\[400px\]::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
 }
 </style>
