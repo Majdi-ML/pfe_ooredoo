@@ -1,0 +1,6 @@
+pour activer les serveurs a ne pas oublierrrrrr!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
+php artisan serve
+php artisan reverb:start
+yarn dev
+ollama run mistral

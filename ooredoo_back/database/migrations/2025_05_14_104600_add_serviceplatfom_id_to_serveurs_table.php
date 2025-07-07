@@ -12,11 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('serveurs', function (Blueprint $table) {
+            $table->integer('serviceplatfom_id')->nullable();
+            $table->foreign('serviceplatfom_id')->references('id')->on('serviceplatfom')->onDelete('set null');
             
-            $table->foreignId('serviceplatfom_id')
-                  ->nullable()
-                  ->constrained('serviceplatfom')
-                  ->onDelete('set null');
         });
     }
 

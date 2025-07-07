@@ -70,6 +70,11 @@ class Demande extends Model
 		return $this->belongsTo(Serviceplatfom::class);
 	}
 
+	public function discussion()
+    {
+        return $this->hasOne(Discussion::class);
+    }
+
 	public function clusters()
 	{
 		return $this->hasMany(Cluster::class);

@@ -1,3 +1,4 @@
+<!-- C:\Users\majdi\Desktop\Stage_pfe_ooredoo\ooredoo-front\app\components\content\Page\PageExDashboard.vue -->
 <template>
   <div class="py-5 min-[1440px]:container max-[1440px]:px-4">
     <div class="rounded-md border bg-background shadow">
@@ -31,6 +32,14 @@
                 <Icon name="lucide:plus" class="mr-2 h-4 w-4" />
                 Ajouter Demande
               </UiButton>
+              <UiButton
+                v-if="isAdmin"
+                variant="default"
+                @click="chatbotStore.openChat"
+              >
+                <Icon name="lucide:message-square" class="mr-2 h-4 w-4" />
+                Chatbot SQL
+              </UiButton>
             </div>
           </div>
 
@@ -39,13 +48,20 @@
             <CreateDemandeWizard @close="closeModal" @created="refreshDemands" />
           </div>
 
+          <!-- Chatbot Modal -->
+          <Chatbot />
+
           <!-- Tabs for page content -->
           <UiTabs default-value="overview" class="space-y-4">
             <UiTabsList>
               <template v-for="(t, i) in tabItems" :key="i">
-                <UiTabsTrigger :value="t.title.toLowerCase()" :disabled="t.disabled">{{
-                  t.title
-                }}</UiTabsTrigger>
+                <UiTabsTrigger
+                  :value="t.value"
+                  :disabled="t.disabled"
+                  v-if="!t.adminOnly || isAdmin"
+                >
+                  {{ t.title }}
+                </UiTabsTrigger>
               </template>
             </UiTabsList>
 
@@ -54,7 +70,7 @@
                 <template v-for="(s, i) in statusCards" :key="i">
                   <UiCard>
                     <UiCardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <UiCardTitle class="text-sm font-medium"> {{ s.title }} </UiCardTitle>
+                      <UiCardTitle class="text-sm font-medium">{{ s.title }}</UiCardTitle>
                       <Icon :name="s.icon" class="h-4 w-4 text-muted-foreground" />
                     </UiCardHeader>
                     <UiCardContent>
@@ -64,10 +80,37 @@
                   </UiCard>
                 </template>
               </div>
-              <DatableOoredoo />
+              <DataTableOoredoo />
+            </UiTabsContent>
+            <UiTabsContent value="clusters" class="space-y-4">
+              <DataTableClusters />
+            </UiTabsContent>
+            <UiTabsContent value="logfiles" class="space-y-4">
+              <DataTableLogFiles />
+            </UiTabsContent>
+            <UiTabsContent value="logfilepatterns" class="space-y-4">
+              <DataTableLogFilesPatterns />
+            </UiTabsContent>
+            <UiTabsContent value="processes" class="space-y-4">
+              <DataTableProcesses />
+            </UiTabsContent>
+            <UiTabsContent value="requetessql" class="space-y-4">
+              <DataTableRequeteSql />
+            </UiTabsContent>
+            <UiTabsContent value="scripts" class="space-y-4">
+              <DataTableScripts />
+            </UiTabsContent>
+            <UiTabsContent value="trapssnmp" class="space-y-4">
+              <DataTableTrapsSnmp />
+            </UiTabsContent>
+            <UiTabsContent value="urls" class="space-y-4">
+              <DataTableUrl />
             </UiTabsContent>
             <UiTabsContent value="utilisateurs" class="space-y-4">
               <ExamplesCardTeamMembers />
+            </UiTabsContent>
+            <UiTabsContent v-if="isAdmin" value="enums" class="space-y-4">
+              <EnnumTable />
             </UiTabsContent>
           </UiTabs>
         </div>
@@ -77,52 +120,114 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted, nextTick, computed } from 'vue';
-import { _colors } from '#tailwind-config/theme';
-import { addDays, format } from 'date-fns';
-import { useUserStore } from '~/stores/user.store';
-import { useDemandeStore } from '~/stores/demande.store'; // Import demande store
-import DatableOoredoo from '../../ooredoo/DataTableOoredoo.vue';
-import ExamplesCardTeamMembers from '../../Examples/Card/TeamMembers.vue';
-import CreateDemandeWizard from '../../ooredoo/adddemande/CreateDemandeWizard.vue';
+import { ref, onMounted, nextTick, computed } from 'vue'
+import { addDays, format } from 'date-fns'
+import { useUserStore } from '~/stores/user.store'
+import { useDemandeStore } from '~/stores/demande.store'
+import { useClusterStore } from '~/stores/cluster.store'
+import { useLogfileStore } from '~/stores/logfile.store'
+import { useServeurStore } from '~/stores/serveur.store'
+import { useChatbotStore } from '~/stores/chatbot.store'
+import DataTableOoredoo from '~/components/ooredoo/DataTableOoredoo.vue'
+import DataTableClusters from '~/components/ooredoo/DataTableClusters.vue'
+import DataTableLogFiles from '~/components/ooredoo/DataTableLogFiles.vue'
+import DataTableLogFilesPatterns from '~/components/ooredoo/DataTableLogFilesPatterns.vue'
+import DataTableProcesses from '~/components/ooredoo/DataTableProcesses.vue'
+import DataTableRequeteSql from '~/components/ooredoo/DataTableRequeteSql.vue'
+import DataTableScripts from '~/components/ooredoo/DataTableScripts.vue'
+import DataTableTrapsSnmp from '~/components/ooredoo/DataTableTrapsSnmps.vue'
+import DataTableUrl from '~/components/ooredoo/DataTableUrl.vue'
+import EnnumTable from '~/components/ooredoo/ennumtable.vue'
+import ExamplesCardTeamMembers from '~/components/Examples/Card/TeamMembers.vue'
+import CreateDemandeWizard from '~/components/ooredoo/adddemande/CreateDemandeWizard.vue'
+import Chatbot from '~/components/ooredoo/chatbot/chatbot.vue'
+import ExamplesDashboardHeader from '~/components/Examples/Dashboard/Header.vue'
 
-definePageMeta({ layout: 'default' });
-useSeoMeta({ title: 'Dashboard' });
+definePageMeta({ layout: 'default' })
+useSeoMeta({ title: 'Dashboard' })
 
-// User store for role check
-const userStore = useUserStore();
-const demandeStore = useDemandeStore(); // Initialize demande store
-const isDemandeur = computed(() => userStore.isDemandeur);
+const userStore = useUserStore()
+const demandeStore = useDemandeStore()
+const clusterStore = useClusterStore()
+const logfileStore = useLogfileStore()
+const serveurStore = useServeurStore()
+const chatbotStore = useChatbotStore()
+const isDemandeur = computed(() => userStore.isDemandeur)
+const isAdmin = computed(() => userStore.isAdmin)
 
-// Modal state
-const isModalOpen = ref(false);
+const isModalOpen = ref(false)
 const openModal = () => {
-  isModalOpen.value = true;
-};
+  isModalOpen.value = true
+}
 const closeModal = async () => {
-  await refreshDemands(); // Refresh demands before closing
-  isModalOpen.value = false;
-};
+  await refreshDemands()
+  isModalOpen.value = false
+}
 
-// Refresh demands
 const refreshDemands = async () => {
   try {
-    await demandeStore.fetchDemandes();
-    console.log('Refreshed demands:', demandeStore.demandes);
+    await demandeStore.fetchDemandes()
+    console.log('Refreshed demands:', demandeStore.demandes)
   } catch (error) {
-    console.error('Error refreshing demands:', error);
+    console.error('Error refreshing demands:', error)
   }
-};
+}
+
+const date = ref({
+  start: new Date(),
+  end: addDays(new Date(), 30),
+})
+
+const tabItems = [
+  { title: 'Overview', value: 'overview', disabled: false, adminOnly: false },
+  { title: 'Clusters', value: 'clusters', disabled: false, adminOnly: false },
+  { title: 'LogFiles', value: 'logfiles', disabled: false, adminOnly: false },
+  { title: 'LogFilePatterns', value: 'logfilepatterns', disabled: false, adminOnly: false },
+  { title: 'Processes', value: 'processes', disabled: false, adminOnly: false },
+  { title: 'Requetes Sql', value: 'requetessql', disabled: false, adminOnly: false },
+  { title: 'Scripts', value: 'scripts', disabled: false, adminOnly: false },
+  { title: 'Traps SNMP', value: 'trapssnmp', disabled: false, adminOnly: false },
+  { title: 'Urls', value: 'urls', disabled: false, adminOnly: false },
+  { title: 'Utilisateurs', value: 'utilisateurs', disabled: false, adminOnly: false },
+  { title: 'Enums', value: 'enums', disabled: false, adminOnly: true },
+]
+
+const statusCards = [
+  {
+    title: 'Demandes Total',
+    icon: 'lucide:dollar-sign',
+    amount: computed(() => demandeStore.totalDemandes.toString()),
+    subtext: 'Total des demandes',
+  },
+  {
+    title: 'Serveurs',
+    icon: 'lucide:users',
+    amount: computed(() => serveurStore.totalServeurs.toString()),
+    subtext: 'Total des serveurs',
+  },
+  {
+    title: 'Log Files',
+    icon: 'lucide:credit-card',
+    amount: computed(() => logfileStore.totalLogfiles.toString()),
+    subtext: 'Total des logfiles',
+  },
+  {
+    title: 'Clusters',
+    icon: 'lucide:activity',
+    amount: computed(() => clusterStore.totalClusters.toString()),
+    subtext: 'Total des clusters',
+  },
+]
 
 // Chart setup (unchanged)
-type DataRecord = { name: string; total: number };
-const chart = ref<HTMLDivElement | null>(null);
+type DataRecord = { name: string; total: number }
+const chart = ref<HTMLDivElement | null>(null)
 
 onMounted(async () => {
-  const XYContainer = (await import('@unovis/ts')).XYContainer;
-  const Axis = (await import('@unovis/ts')).Axis;
-  const GroupedBar = (await import('@unovis/ts')).GroupedBar;
-  const Tooltip = (await import('@unovis/ts')).Tooltip;
+  const XYContainer = (await import('@unovis/ts')).XYContainer
+  const Axis = (await import('@unovis/ts')).Axis
+  const GroupedBar = (await import('@unovis/ts')).GroupedBar
+  const Tooltip = (await import('@unovis/ts')).Tooltip
 
   const tooltip = new Tooltip({
     horizontalPlacement: 'right',
@@ -133,7 +238,7 @@ onMounted(async () => {
           style: 'currency',
         }).format(d.total)}</span>`,
     },
-  });
+  })
   const data: DataRecord[] = [
     { name: 'Jan', total: Math.floor(Math.random() * 5000) + 1000 },
     { name: 'Feb', total: Math.floor(Math.random() * 5000) + 1000 },
@@ -147,7 +252,7 @@ onMounted(async () => {
     { name: 'Oct', total: Math.floor(Math.random() * 5000) + 1000 },
     { name: 'Nov', total: Math.floor(Math.random() * 5000) + 1000 },
     { name: 'Dec', total: Math.floor(Math.random() * 5000) + 1000 },
-  ];
+  ]
 
   const bar = new GroupedBar<DataRecord>({
     x: (d, i) => i,
@@ -155,7 +260,7 @@ onMounted(async () => {
     color: '#adfa1d',
     barPadding: 0.05,
     roundedCorners: 4,
-  });
+  })
   await nextTick(() => {
     new XYContainer(
       chart.value!,
@@ -177,88 +282,7 @@ onMounted(async () => {
         tooltip,
       },
       data
-    );
-  });
-});
-
-const date = ref({
-  start: new Date(),
-  end: addDays(new Date(), 30),
-});
-
-const tabItems = [
-  { title: 'Overview', disabled: false },
-  { title: 'LogFiles', disabled: false },
-  { title: 'Process', disabled: false },
-  { title: 'Serveurs', disabled: false },
-  { title: 'Utilisateurs', disabled: false },
-  { title: 'Services Platfom', disabled: false },
-  { title: 'Requetes Sql', disabled: false },
-  { title: 'Scripts', disabled: false },
-];
-
-const statusCards = [
-  {
-    title: 'Demandes Total',
-    icon: 'lucide:dollar-sign',
-    amount: '100',
-    subtext: '+20.1% du mois dernier',
-  },
-  {
-    title: 'Serveurs',
-    icon: 'lucide:users',
-    amount: '+2350',
-    subtext: '+180.1% Ajouté',
-  },
-  {
-    title: 'Log Files',
-    icon: 'lucide:credit-card',
-    amount: '+12,234',
-    subtext: '+19% du mois dernier',
-  },
-  {
-    title: 'Clusters',
-    icon: 'lucide:activity',
-    amount: '+573',
-    subtext: '+201 du mois dernier',
-  },
-];
-
-const recentSales = [
-  {
-    avatar: 'https://avatar.vercel.sh/oliviamartin',
-    initials: 'OM',
-    name: 'Olivia Martin',
-    email: 'olivia.martin@email.com',
-    amount: '+$1,999.00',
-  },
-  {
-    avatar: 'https://avatar.vercel.sh/jackson',
-    initials: 'JL',
-    name: 'Jackson Lee',
-    email: 'jackson.lee@email.com',
-    amount: '+$39.00',
-  },
-  {
-    avatar: 'https://avatar.vercel.sh/isabellanguyen',
-    initials: 'IN',
-    name: 'Isabella Nguyen',
-    email: 'isabella.nguyen@email.com',
-    amount: '+$299.00',
-  },
-  {
-    avatar: 'https://avatar.vercel.sh/williamkim',
-    initials: 'WK',
-    name: 'William Kim',
-    email: 'will@email.com',
-    amount: '+$99.00',
-  },
-  {
-    avatar: 'https://avatar.vercel.sh/sofiadavis',
-    initials: 'SD',
-    name: 'Sofia Davis',
-    email: 'sofia.davis@email.com',
-    amount: '+$39.00',
-  },
-];
+    )
+  })
+})
 </script>

@@ -4,7 +4,7 @@
       Chargement des scripts...
     </div>
     <div v-else-if="error" class="text-center py-8 text-red-500">
-      Erreur lors du chargement des scripts : {{ error.message }}
+      Erreur lors du chargement des scripts : {{ error }}
     </div>
     <div v-else-if="data && data.length > 0">
       <UiDatatable 
@@ -20,30 +20,30 @@
 </template>
 
 <script lang="ts" setup>
-import { useFetch } from '#imports'
+import { onMounted, computed } from 'vue'
+import { useScriptStore } from '~/stores/script.store'
 import type { Script } from '~/interfaces/Script'
 
 const props = defineProps<{ demandeId: number }>()
+const scriptStore = useScriptStore()
 
-const { data, pending, error } = useFetch<Script[]>(`/api/scripts`, {
-  method: 'get',
-  query: { demande_id: props.demandeId, include: 'etat,criticite,monitoredby' }
+onMounted(async () => {
+  await scriptStore.fetchScripts()
 })
 
+const data = computed(() => scriptStore.scriptsByDemande(props.demandeId))
+const pending = computed(() => scriptStore.loading)
+const error = computed(() => scriptStore.error)
+
 const columns = [
-  { data: 'id', title: 'ID' },
   { data: 'ref', title: 'Référence' },
-  { data: 'etat_id', title: 'État ID' },
   { data: 'refComposant', title: 'Composant' },
   { data: 'rgSgSiCluster', title: 'Cluster' },
   { data: 'script', title: 'Script' },
   { data: 'codeErreur', title: 'Code Erreur' },
-  { data: 'criticite_id', title: 'Criticité ID' },
   { data: 'description', title: 'Description' },
   { data: 'instructions', title: 'Instructions' },
-  { data: 'monitoredBy_id', title: 'Monitoré par ID' },
   { data: 'refService', title: 'Service' },
-  { data: 'demande_id', title: 'Demande ID' },
   { data: 'etat.nom', title: 'État' },
   { data: 'criticite.nom', title: 'Criticité' },
   { data: 'monitoredby.nom', title: 'Monitoré par' }

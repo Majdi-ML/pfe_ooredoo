@@ -2,8 +2,11 @@ import { defineStore } from 'pinia'
 import axios from 'axios'
 import type { LogfilePattern, LogfilePatternCreatePayload } from '@/interfaces/LogfilePattern'
 
+axios.defaults.withCredentials = true;
+axios.defaults.withXSRFToken = true;
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api',
+  baseURL: 'http://localhost:8000/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'

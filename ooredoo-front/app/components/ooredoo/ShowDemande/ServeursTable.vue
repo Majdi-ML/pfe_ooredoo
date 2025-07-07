@@ -4,7 +4,7 @@
       Chargement des serveurs...
     </div>
     <div v-else-if="error" class="text-center py-8 text-red-500">
-      Erreur lors du chargement des serveurs : {{ error.message }}
+      Erreur lors du chargement des serveurs : {{ error }}
     </div>
     <div v-else-if="data && data.length > 0">
       <UiDatatable 
@@ -20,34 +20,30 @@
 </template>
 
 <script lang="ts" setup>
-import { useFetch } from '#imports'
+import { onMounted, computed } from 'vue'
+import { useServeurStore } from '~/stores/serveur.store'
 import type { Serveur } from '~/interfaces/Serveur'
 
 const props = defineProps<{ demandeId: number }>()
+const serveurStore = useServeurStore()
 
-const { data, pending, error } = useFetch<Serveur[]>(`/api/serveurs`, {
-  method: 'get',
-  query: { demande_id: props.demandeId, include: 'etat,platforme,typeserveur,os,ver_tech_firmware,soclestandardomu,serviceplatfom' }
+onMounted(async () => {
+  await serveurStore.fetchServeurs()
 })
 
+const data = computed(() => serveurStore.serveursByDemande(props.demandeId))
+const pending = computed(() => serveurStore.loading)
+const error = computed(() => serveurStore.error)
+
 const columns = [
-  { data: 'id', title: 'ID' },
   { data: 'ref', title: 'Référence' },
-  { data: 'etat_id', title: 'État ID' },
-  { data: 'platforme_id', title: 'Plateforme ID' },
   { data: 'hostname', title: 'Hostname' },
   { data: 'fqdn', title: 'FQDN' },
-  { data: 'type_id', title: 'Type ID' },
-  { data: 'serviceplatfom_id', title: 'Service Platform ID' },
   { data: 'modele', title: 'Modèle' },
-  { data: 'os_id', title: 'OS ID' },
-  { data: 'verTechFirmware_id', title: 'Firmware ID' },
   { data: 'cluster', title: 'Cluster' },
   { data: 'ipSource', title: 'IP Source' },
   { data: 'description', title: 'Description' },
-  { data: 'socleStandardOmu_id', title: 'Socle OMU ID' },
   { data: 'complementsInformations', title: 'Compléments' },
-  { data: 'demande_id', title: 'Demande ID' },
   { data: 'etat.nom', title: 'État' },
   { data: 'platforme.nom', title: 'Plateforme' },
   { data: 'typeserveur.nom', title: 'Type Serveur' },

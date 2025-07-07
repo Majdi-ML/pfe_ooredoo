@@ -4,7 +4,7 @@
       Chargement des traps SNMP...
     </div>
     <div v-else-if="error" class="text-center py-8 text-red-500">
-      Erreur lors du chargement des traps SNMP : {{ error.message }}
+      Erreur lors du chargement des traps SNM : {{ error }}
     </div>
     <div v-else-if="data && data.length > 0">
       <UiDatatable 
@@ -20,34 +20,34 @@
 </template>
 
 <script lang="ts" setup>
-import { useFetch } from '#imports'
+import { onMounted, computed } from 'vue'
+import { useTrapSnmpStore } from '~/stores/trapSnmp.store'
 import type { TrapSnmp } from '~/interfaces/TrapSnmp'
 
 const props = defineProps<{ demandeId: number }>()
+const trapSnmpStore = useTrapSnmpStore()
 
-const { data, pending, error } = useFetch<TrapSnmp[]>(`/api/trapssnmps`, {
-  method: 'get',
-  query: { demande_id: props.demandeId, include: 'etat,criticite,version_snmp' }
+onMounted(async () => {
+  await trapSnmpStore.fetchTraps()
 })
 
+const data = computed(() => trapSnmpStore.trapsByDemande(props.demandeId))
+const pending = computed(() => trapSnmpStore.loading)
+const error = computed(() => trapSnmpStore.error)
+
 const columns = [
-  { data: 'id', title: 'ID' },
   { data: 'ref', title: 'Référence' },
-  { data: 'etat_id', title: 'État ID' },
   { data: 'refComposant', title: 'Composant' },
   { data: 'signification', title: 'Signification' },
-  { data: 'versionSnmp_id', title: 'Version SNMP ID' },
   { data: 'oid', title: 'OID' },
   { data: 'specificTrap', title: 'Trap spécifique' },
   { data: 'variableBinding', title: 'Variable Binding' },
-  { data: 'criticite_id', title: 'Criticité ID' },
   { data: 'messageAlarme', title: 'Message Alarme' },
   { data: 'instructions', title: 'Instructions' },
   { data: 'acquittement', title: 'Acquittement' },
   { data: 'mibAssocie', title: 'MIB associé' },
   { data: 'objet', title: 'Objet' },
   { data: 'compelementInformation', title: 'Information complémentaire' },
-  { data: 'demande_id', title: 'Demande ID' },
   { data: 'etat.nom', title: 'État' },
   { data: 'criticite.nom', title: 'Criticité' },
   { data: 'version_snmp.nom', title: 'Version SNMP' }

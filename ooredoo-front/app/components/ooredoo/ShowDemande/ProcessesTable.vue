@@ -4,7 +4,7 @@
       Chargement des processus...
     </div>
     <div v-else-if="error" class="text-center py-8 text-red-500">
-      Erreur lors du chargement des processus : {{ error.message }}
+      Erreur lors du chargement des processus : {{ error }}
     </div>
     <div v-else-if="data && data.length > 0">
       <UiDatatable 
@@ -20,29 +20,29 @@
 </template>
 
 <script lang="ts" setup>
-import { useFetch } from '#imports'
+import { onMounted, computed } from 'vue'
+import { useProcessStore } from '~/stores/process.store'
 import type { Process } from '~/interfaces/Process'
 
 const props = defineProps<{ demandeId: number }>()
+const processStore = useProcessStore()
 
-const { data, pending, error } = useFetch<Process[]>(`/api/processes`, {
-  method: 'get',
-  query: { demande_id: props.demandeId, include: 'etat,criticite,monitoredby' }
+onMounted(async () => {
+  await processStore.fetchProcesses()
 })
 
+const data = computed(() => processStore.processesByDemande(props.demandeId))
+const pending = computed(() => processStore.loading)
+const error = computed(() => processStore.error)
+
 const columns = [
-  { data: 'id', title: 'ID' },
   { data: 'ref', title: 'Référence' },
-  { data: 'etat_id', title: 'État ID' },
   { data: 'refComposant', title: 'Composant' },
   { data: 'process', title: 'Process' },
-  { data: 'criticite_id', title: 'Criticité ID' },
   { data: 'messageAlarme', title: 'Message Alarme' },
   { data: 'intervalleDePolling', title: 'Intervalle' },
   { data: 'objet', title: 'Objet' },
   { data: 'nomTemplate', title: 'Template' },
-  { data: 'monitoredBy_id', title: 'Monitoré par ID' },
-  { data: 'demande_id', title: 'Demande ID' },
   { data: 'etat.nom', title: 'État' },
   { data: 'criticite.nom', title: 'Criticité' },
   { data: 'monitoredby.nom', title: 'Monitoré par' }
@@ -63,6 +63,6 @@ const tableOptions = {
 }
 
 if (error.value) {
-  console.error('Erreur lors du chargement des processus:', error.value)
+  console.error('Erreur lors du chargement des logfiles:', error.value)
 }
 </script>

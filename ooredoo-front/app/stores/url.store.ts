@@ -1,9 +1,12 @@
-import { defineStore } from 'pinia'
+
 import axios from 'axios'
 import type { Url, UrlCreatePayload } from '@/interfaces/Url'
 
+axios.defaults.withCredentials = true;
+axios.defaults.withXSRFToken = true;
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api',
+  baseURL: 'http://localhost:8000/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -24,7 +27,7 @@ export const useUrlStore = defineStore('url', {
       this.error = null
       try {
         const response = await apiClient.get('/urls', {
-          params: { include: 'etat,demande,serveurs' }
+          params: { include: 'etat,criticite,monitoredby,demande,serveurs' }
         })
         this.urls = response.data
       } catch (error: any) {
@@ -38,7 +41,7 @@ export const useUrlStore = defineStore('url', {
       this.loading = true
       try {
         const response = await apiClient.get(`/urls/${id}`, {
-          params: { include: 'etat,demande,serveurs' }
+          params: { include: 'etat,criticite,monitoredby,demande,serveurs' }
         })
         this.currentUrl = response.data
         return response.data
@@ -69,16 +72,13 @@ export const useUrlStore = defineStore('url', {
       try {
         const { id, ...payload } = url
         const response = await apiClient.put(`/urls/${id}`, payload)
-        
         const index = this.urls.findIndex(u => u.id === id)
         if (index !== -1) {
           this.urls[index] = response.data
         }
-        
         if (this.currentUrl?.id === id) {
           this.currentUrl = response.data
         }
-        
         return response.data
       } catch (error: any) {
         this.handleError(error, 'Error updating URL')
@@ -93,7 +93,6 @@ export const useUrlStore = defineStore('url', {
       try {
         await apiClient.delete(`/urls/${id}`)
         this.urls = this.urls.filter(u => u.id !== id)
-        
         if (this.currentUrl?.id === id) {
           this.currentUrl = null
         }
@@ -116,11 +115,9 @@ export const useUrlStore = defineStore('url', {
     getUrlById: (state) => (id: number) => {
       return state.urls.find(u => u.id === id)
     },
-    
     urlsByDemande: (state) => (demandeId: number) => {
       return state.urls.filter(u => u.demande_id === demandeId)
     },
-    
     totalUrls: (state) => state.urls.length
   }
 })

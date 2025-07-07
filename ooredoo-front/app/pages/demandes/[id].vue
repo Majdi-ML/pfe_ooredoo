@@ -1,4 +1,3 @@
-
 <template>
   <div class="py-5 min-[1440px]:container max-[1440px]:px-4">
     <div class="rounded-md border bg-background shadow">
@@ -6,9 +5,7 @@
         <ExamplesDashboardHeader />
         <div class="flex-1 space-y-4 p-8 pt-6">
           <div class="flex items-center justify-between space-y-2">
-            <h2 class="text-3xl font-bold tracking-tight">Demande #{{
-              demande?.id ?? 'Chargement'
-            }}</h2>
+            <h2 class="text-3xl font-bold tracking-tight">Demande #{{ demande?.id ?? 'Chargement' }}</h2>
             <div class="flex items-center space-x-2">
               <div>
                 <UiDatepicker v-model.range="date" :columns="2">
@@ -29,7 +26,6 @@
             </div>
           </div>
 
-          <!-- Bouton Retour, Avancer, et Discussion -->
           <div class="mb-6 flex items-center space-x-4">
             <UiButton variant="outline" @click="navigateTo('/examples/dashboard')">
               <Icon name="lucide:arrow-left" class="mr-2 h-4 w-4" />
@@ -44,15 +40,26 @@
               <Icon name="lucide:arrow-right" class="mr-2 h-4 w-4" />
               {{ nextStepLabel }}
             </UiButton>
-            <UiButton variant="outline" @click="openDiscussion">
+            <UiButton
+              v-if="authStore.isAuthenticated && discussionId"
+              variant="outline"
+              @click="openDiscussion"
+            >
               <Icon name="lucide:message-circle" class="mr-2 h-4 w-4" />
               Voir Discussion
             </UiButton>
+            <UiButton
+              v-if="authStore.isAuthenticated && authStore.isAdmin && !discussionId"
+              variant="default"
+              @click="createDiscussion"
+              :disabled="loading"
+            >
+              <Icon name="lucide:plus-circle" class="mr-2 h-4 w-4" />
+              Créer Discussion
+            </UiButton>
           </div>
 
-          <!-- Détails de la demande -->
           <div class="bg-white shadow rounded-lg p-6 mb-8" v-if="demande">
-            <!-- Timeline du workflow (horizontale) -->
             <div class="mb-8">
               <h2 class="text-xl font-semibold mb-4">Progression du workflow</h2>
               <div class="relative">
@@ -84,7 +91,6 @@
               </div>
             </div>
 
-            <!-- Grille des informations principales -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
                 <h3 class="text-sm font-medium text-gray-500">Référence</h3>
@@ -116,7 +122,6 @@
               </div>
             </div>
 
-            <!-- Onglets -->
             <UiTabs default-value="clusters" class="space-y-4">
               <UiTabsList>
                 <template v-for="(tab, index) in tabs" :key="index">
@@ -168,170 +173,125 @@
           <div v-else class="text-center py-8 text-gray-500">
             Chargement de la demande...
           </div>
-        </div>
 
-        <!-- Discussion Dialog -->
-        <UiDialog v-model:open="isDiscussionOpen">
-          <UiDialogContent class="max-w-2xl">
-            <UiDialogHeader>
-              <UiDialogTitle>Discussion concernant la demande #{{ demande?.id }}</UiDialogTitle>
-              <UiDialogDescription>
-                Conversation entre {{ authStore.user?.username ?? 'Utilisateur connecté' }} et {{
-                  demande?.user?.username ?? 'Utilisateur de la demande'
-                }}
-              </UiDialogDescription>
-            </UiDialogHeader>
-            <div class="mt-4 max-h-[400px] overflow-y-auto p-4 bg-gray-50 rounded-md space-y-4">
-              <!-- Static Conversation -->
-              <div
-                class="flex flex-col items-end"
-                :class="{ 'items-start': demande?.user?.username !== authStore.user?.username }"
-              >
-                <div
-                  class="max-w-[70%] rounded-lg p-3"
-                  :class="{
-                    'bg-blue-500 text-white': authStore.user?.username === 'Utilisateur connecté',
-                    'bg-gray-200 text-gray-800': demande?.user?.username === 'Utilisateur de la demande'
-                  }"
-                >
-                  <p class="text-sm">Bonjour, j'ai remarqué un problème dans le logfile avec la référence lg-02. Pouvez-vous vérifier ?</p>
-                </div>
-                <p class="text-xs text-gray-400 mt-1">17/06/2025 10:30</p>
-              </div>
-              <div
-                class="flex flex-col items-start"
-                :class="{ 'items-end': demande?.user?.username === authStore.user?.username }"
-              >
-                <div
-                  class="max-w-[70%] rounded-lg p-3"
-                  :class="{
-                    'bg-gray-200 text-gray-800': demande?.user?.username === 'Utilisateur de la demande',
-                    'bg-blue-500 text-white': authStore.user?.username === 'Utilisateur connecté'
-                  }"
-                >
-                  <p class="text-sm">Merci pour le signalement. Je vais vérifier le logfile lg-02 et je vous tiens au courant.</p>
-                </div>
-                <p class="text-xs text-gray-400 mt-1">17/06/2025 10:45</p>
-              </div>
-              <div
-                class="flex flex-col items-end"
-                :class="{ 'items-start': demande?.user?.username !== authStore.user?.username }"
-              >
-                <div
-                  class="max-w-[70%] rounded-lg p-3"
-                  :class="{
-                    'bg-blue-500 text-white': authStore.user?.username === 'Utilisateur connecté',
-                    'bg-gray-200 text-gray-800': demande?.user?.username === 'Utilisateur de la demande'
-                  }"
-                >
-                  <p class="text-sm">D'accord, merci pour votre retour rapide !</p>
-                </div>
-                <p class="text-xs text-gray-400 mt-1">17/06/2025 10:50</p>
-              </div>
-            </div>
-            <UiDialogFooter>
-              <UiButton variant="outline" @click="isDiscussionOpen = false">Fermer</UiButton>
-            </UiDialogFooter>
-          </UiDialogContent>
-        </UiDialog>
+          <Chat v-if="discussionId && authStore.isAuthenticated" :discussion-id="discussionId" />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { useRoute, useRouter } from 'vue-router';
-import { useDemandeStore } from '~/stores/demande.store';
-import { useUserStore } from '~/stores/user.store';
-import { ref, computed } from 'vue';
-import { onMounted } from 'vue';
-import { addDays, format } from 'date-fns';
-import type { Demande } from '~/interfaces/Demande';
-import ClustersTable from '~/components/ooredoo/ShowDemande/ClustersTable.vue';
-import LogfilesTable from '~/components/ooredoo/ShowDemande/LogfilesTable.vue';
-import ServeursTable from '~/components/ooredoo/ShowDemande/ServeursTable.vue';
-import ProcessesTable from '~/components/ooredoo/ShowDemande/ProcessesTable.vue';
-import RequetesSqlTable from '~/components/ooredoo/ShowDemande/RequetesSqlTable.vue';
-import ScriptsTable from '~/components/ooredoo/ShowDemande/ScriptsTable.vue';
-import TrapsSnmpTable from '~/components/ooredoo/ShowDemande/TrapsSnmpTable.vue';
-import UrlsTable from '~/components/ooredoo/ShowDemande/UrlsTable.vue';
-import LogfilesPatternsTable from '~/components/ooredoo/ShowDemande/LogfilesPatternsTable.vue';
+import { useRoute, useRouter } from 'vue-router'
+import { useDemandeStore } from '~/stores/demande.store'
+import { useUserStore } from '~/stores/user.store'
+import { useChatStore } from '~/stores/chat.store'
+import { ref, computed } from 'vue'
+import { onMounted } from 'vue'
+import { addDays, format } from 'date-fns'
+import type { Demande } from '~/interfaces/Demande'
+import ClustersTable from '~/components/ooredoo/ShowDemande/ClustersTable.vue'
+import LogfilesTable from '~/components/ooredoo/ShowDemande/LogfilesTable.vue'
+import ServeursTable from '~/components/ooredoo/ShowDemande/ServeursTable.vue'
+import ProcessesTable from '~/components/ooredoo/ShowDemande/ProcessesTable.vue'
+import RequetesSqlTable from '~/components/ooredoo/ShowDemande/RequetesSqlTable.vue'
+import ScriptsTable from '~/components/ooredoo/ShowDemande/ScriptsTable.vue'
+import TrapsSnmpTable from '~/components/ooredoo/ShowDemande/TrapsSnmpTable.vue'
+import UrlsTable from '~/components/ooredoo/ShowDemande/UrlsTable.vue'
+import LogfilesPatternsTable from '~/components/ooredoo/ShowDemande/LogfilesPatternsTable.vue'
+import Chat from '~/components/ooredoo/realtimechat/chat.vue'
+import axios from 'axios'
 
-// Initialisation
-const route = useRoute();
-const router = useRouter();
-const demandeStore = useDemandeStore();
-const authStore = useUserStore();
-const demande = ref<Demande | null>(null);
-const loading = ref(false);
-const isDiscussionOpen = ref(false); // Control dialog visibility
+const route = useRoute()
+const router = useRouter()
+const demandeStore = useDemandeStore()
+const authStore = useUserStore()
+const chatStore = useChatStore()
+const demande = ref<Demande | null>(null)
+const loading = ref(false)
+const discussionId = ref<number | null>(null)
 
-// Date picker setup
 const date = ref({
   start: new Date(),
   end: addDays(new Date(), 30),
-});
+})
 
-// Définition des étapes du workflow
 const workflowSteps = [
   { id: 1, label: 'Nouvelle', statusName: 'new' },
   { id: 2, label: 'En validation', statusName: 'validation' },
   { id: 3, label: 'En traitement', statusName: 'en traitement' },
   { id: 4, label: 'Test', statusName: 'test' },
   { id: 5, label: 'Clôturée', statusName: 'cloturée' },
-];
+]
 
-// Statut actuel
-const currentStatusId = computed(() => demande.value?.status_id ?? 1);
+const currentStatusId = computed(() => demande.value?.status_id ?? 1)
+const isAdmin = computed(() => authStore.isAdmin)
+const isDemandeur = computed(() => authStore.isDemandeur)
 
-// Rôles de l'utilisateur connecté
-const isAdmin = computed(() => authStore.isAdmin);
-const isDemandeur = computed(() => authStore.isDemandeur);
-
-// Logique pour déterminer si l'utilisateur peut avancer
 const canAdvance = computed(() => {
-  if (!demande.value || currentStatusId.value >= 5) return false;
-  const currentStep = workflowSteps.find(step => step.id === currentStatusId.value);
-  if (!currentStep) return false;
+  if (!demande.value || currentStatusId.value >= 5) return false
+  const currentStep = workflowSteps.find(step => step.id === currentStatusId.value)
+  if (!currentStep) return false
+  if (currentStep.statusName === 'new' && isAdmin.value) return true
+  if (currentStep.statusName === 'validation' && isAdmin.value) return true
+  if (currentStep.statusName === 'en traitement' && isAdmin.value) return true
+  if (currentStep.statusName === 'test' && isDemandeur.value) return true
+  return false
+})
 
-  if (currentStep.statusName === 'new' && isAdmin.value) return true;
-  if (currentStep.statusName === 'validation' && isAdmin.value) return true;
-  if (currentStep.statusName === 'en traitement' && isAdmin.value) return true;
-  if (currentStep.statusName === 'test' && isDemandeur.value) return true;
-  return false;
-});
-
-// Label du bouton pour la prochaine étape
 const nextStepLabel = computed(() => {
-  const nextStepId = currentStatusId.value + 1;
-  const nextStep = workflowSteps.find(step => step.id === nextStepId);
-  return nextStep ? `Avancer à "${nextStep.label}"` : '';
-});
+  const nextStepId = currentStatusId.value + 1
+  const nextStep = workflowSteps.find(step => step.id === nextStepId)
+  return nextStep ? `Avancer à "${nextStep.label}"` : ''
+})
 
-// Fonction pour avancer la demande
 const advanceDemande = async () => {
-  if (!demande.value || !canAdvance.value) return;
-  loading.value = true;
+  if (!demande.value || !canAdvance.value) return
+  loading.value = true
   try {
-    const nextStatusId = currentStatusId.value + 1;
-    const updatedDemande = { ...demande.value, status_id: nextStatusId };
-    await demandeStore.updateDemande(updatedDemande);
-    demande.value = demandeStore.currentDemande;
+    const nextStatusId = currentStatusId.value + 1
+    const updatedDemande = { ...demande.value, status_id: nextStatusId }
+    await demandeStore.updateDemande(updatedDemande)
+    demande.value = demandeStore.currentDemande
   } catch (error) {
-    console.error('Erreur lors de l\'avancement de la demande:', error);
+    console.error('Erreur lors de l\'avancement de la demande:', error)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
-// Classes pour les étapes de la timeline
+const createDiscussion = async () => {
+  if (!demande.value || !authStore.isAdmin) return
+  loading.value = true
+  try {
+    await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true })
+    const response = await axios.post('http://localhost:8000/api/discussions', {
+      demande_id: demande.value.id,
+    }, {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
+        Accept: 'application/json',
+        'X-XSRF-TOKEN': document.cookie.match('XSRF-TOKEN=([^;]+)')?.[1] || '',
+      },
+    })
+    discussionId.value = response.data.discussion.id
+    console.log('Discussion created:', discussionId.value)
+    await chatStore.initializeChat(discussionId.value)
+    chatStore.openChat()
+  } catch (error: any) {
+    console.error('Erreur lors de la création de la discussion:', error)
+    chatStore.error = error.response?.data?.message || 'Erreur lors de la création de la discussion'
+  } finally {
+    loading.value = false
+  }
+}
+
 const getStepClass = (stepId: number) => {
-  if (stepId < currentStatusId.value) return 'bg-green-500';
-  if (stepId === currentStatusId.value) return 'bg-blue-500';
-  return 'bg-gray-200';
-};
+  if (stepId < currentStatusId.value) return 'bg-green-500'
+  if (stepId === currentStatusId.value) return 'bg-blue-500'
+  return 'bg-gray-200'
+}
 
-// Formatage des dates
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleString('fr-FR', {
     day: '2-digit',
@@ -339,15 +299,40 @@ const formatDate = (dateString: string) => {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  });
-};
+  })
+}
 
-// Fonction pour ouvrir la discussion
-const openDiscussion = () => {
-  isDiscussionOpen.value = true;
-};
+const openDiscussion = async () => {
+  if (!authStore.isAuthenticated) {
+    await authStore.checkAuth().catch(() => {
+      chatStore.error = 'Utilisateur non authentifié'
+      return
+    })
+  }
+  if (discussionId.value && authStore.isAuthenticated) {
+    await chatStore.initializeChat(discussionId.value)
+    chatStore.openChat()
+  }
+}
 
-// Onglets avec compteurs
+const fetchDiscussionId = async (demandeId: number) => {
+  try {
+    await axios.get('http://localhost:8000/sanctum/csrf-cookie', { withCredentials: true })
+    const response = await axios.get(`http://localhost:8000/api/discussions?demande_id=${demandeId}`, {
+      headers: {
+        Authorization: `Bearer ${authStore.token}`,
+        Accept: 'application/json',
+        'X-XSRF-TOKEN': document.cookie.match('XSRF-TOKEN=([^;]+)')?.[1] || '',
+      },
+    })
+    discussionId.value = response.data.discussion?.id || null
+    console.log('Discussion ID fetched:', discussionId.value)
+  } catch (error: any) {
+    console.error('Erreur lors de la récupération de la discussion:', error)
+    chatStore.error = error.response?.data?.message || 'Erreur lors de la récupération de la discussion'
+  }
+}
+
 const tabs = [
   {
     value: 'clusters',
@@ -403,24 +388,27 @@ const tabs = [
     hasData: computed(() => (demande.value?.logfilespatterns?.length ?? 0) > 0),
     count: computed(() => demande.value?.logfilespatterns?.length ?? 0),
   },
-];
+]
 
-// Chargement des données
 onMounted(async () => {
-  const demandeId = Number(route.params.id);
-  await demandeStore.fetchDemandeById(demandeId);
-  demande.value = demandeStore.currentDemande;
-  console.log('Demande chargée:', demande.value);
-});
+  const demandeId = Number(route.params.id)
+  await authStore.checkAuth().catch(() => {
+    console.log('User not authenticated on mount')
+  })
+  await demandeStore.fetchDemandeById(demandeId)
+  demande.value = demandeStore.currentDemande
+  if (demande.value && authStore.isAuthenticated) {
+    await fetchDiscussionId(demandeId)
+  }
+  console.log('Demande chargée:', demande.value, 'Discussion ID:', discussionId.value)
+})
 
-// Navigation
 const navigateTo = (path: string) => {
-  router.push(path);
-};
+  router.push(path)
+}
 </script>
 
 <style scoped>
-/* Styles pour la timeline horizontale */
 ul {
   position: relative;
 }
@@ -438,24 +426,5 @@ li {
     flex: 0 0 45%;
     min-width: 0;
   }
-}
-
-/* Styles pour la discussion */
-.max-h-\[400px\] {
-  scrollbar-width: thin;
-  scrollbar-color: #d1d5db #f3f4f6;
-}
-
-.max-h-\[400px\]::-webkit-scrollbar {
-  width: 8px;
-}
-
-.max-h-\[400px\]::-webkit-scrollbar-track {
-  background: #f3f4f6;
-}
-
-.max-h-\[400px\]::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
 }
 </style>

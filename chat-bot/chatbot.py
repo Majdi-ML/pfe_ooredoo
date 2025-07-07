@@ -2,9 +2,17 @@ from flask import Flask, request, jsonify
 import mysql.connector
 import requests
 import re
-
+from flask_cors import CORS 
 app = Flask(__name__)
-
+# Configuration CORS critique - Ajoutez ces lignes
+CORS(app, resources={
+    r"/ask": {
+        "origins": ["http://localhost:3000"],
+        "methods": ["POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Accept", "x-xsrf-token"],  # Add x-xsrf-token here
+        "supports_credentials": True
+    }
+})
 # Config MySQL - adapte selon ta config
 # Config MySQL
 db_config = {
@@ -88,8 +96,11 @@ Génère uniquement une requête SQL (pas de texte), en réponse à la question 
 
     return json_response['response'].strip()
 
-@app.route("/ask", methods=["POST"])
+@app.route("/ask", methods=["POST", "OPTIONS"])  # Ajoutez OPTIONS
 def ask():
+    if request.method == "OPTIONS":
+        return jsonify({}), 200
+    
     data = request.get_json()
     question = data.get("question")
     if not question:

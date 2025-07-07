@@ -2,8 +2,11 @@ import { defineStore } from 'pinia'
 import axios from 'axios'
 import type { TrapSnmp, TrapSnmpCreatePayload } from '@/interfaces/TrapSnmp'
 
+axios.defaults.withCredentials = true;
+axios.defaults.withXSRFToken = true;
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api',
+  baseURL: 'http://localhost:8000/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -23,8 +26,8 @@ export const useTrapSnmpStore = defineStore('trapSnmp', {
       this.loading = true
       this.error = null
       try {
-        const response = await apiClient.get('/trapssnmps', {
-          params: { include: 'etat,demande,serveurs' }
+        const response = await apiClient.get('/trapssnmp', { // Changed from /trapssnmps to /trapssnmp
+          params: { include: 'etat,versionsnmp,criticite,demande,serveurs' } // Updated include to match controller
         })
         this.traps = response.data
       } catch (error: any) {
@@ -37,8 +40,8 @@ export const useTrapSnmpStore = defineStore('trapSnmp', {
     async fetchTrapById(id: number) {
       this.loading = true
       try {
-        const response = await apiClient.get(`/trapssnmps/${id}`, {
-          params: { include: 'etat,demande,serveurs' }
+        const response = await apiClient.get(`/trapssnmp/${id}`, { // Changed from /trapssnmps to /trapssnmp
+          params: { include: 'etat,versionsnmp,criticite,demande,serveurs' }
         })
         this.currentTrap = response.data
         return response.data
@@ -53,7 +56,7 @@ export const useTrapSnmpStore = defineStore('trapSnmp', {
     async createTrap(payload: TrapSnmpCreatePayload) {
       this.loading = true
       try {
-        const response = await apiClient.post('/trapssnmps', payload)
+        const response = await apiClient.post('/trapssnmp', payload) // Changed from /trapssnmps to /trapssnmp
         this.traps.unshift(response.data)
         return response.data
       } catch (error: any) {
@@ -68,17 +71,14 @@ export const useTrapSnmpStore = defineStore('trapSnmp', {
       this.loading = true
       try {
         const { id, ...payload } = trap
-        const response = await apiClient.put(`/trapssnmps/${id}`, payload)
-        
+        const response = await apiClient.put(`/trapssnmp/${id}`, payload) // Changed from /trapssnmps to /trapssnmp
         const index = this.traps.findIndex(t => t.id === id)
         if (index !== -1) {
           this.traps[index] = response.data
         }
-        
         if (this.currentTrap?.id === id) {
           this.currentTrap = response.data
         }
-        
         return response.data
       } catch (error: any) {
         this.handleError(error, 'Error updating trap')
@@ -91,9 +91,8 @@ export const useTrapSnmpStore = defineStore('trapSnmp', {
     async deleteTrap(id: number) {
       this.loading = true
       try {
-        await apiClient.delete(`/trapssnmps/${id}`)
+        await apiClient.delete(`/trapssnmp/${id}`) // Changed from /trapssnmps to /trapssnmp
         this.traps = this.traps.filter(t => t.id !== id)
-        
         if (this.currentTrap?.id === id) {
           this.currentTrap = null
         }
@@ -116,11 +115,9 @@ export const useTrapSnmpStore = defineStore('trapSnmp', {
     getTrapById: (state) => (id: number) => {
       return state.traps.find(t => t.id === id)
     },
-    
     trapsByDemande: (state) => (demandeId: number) => {
       return state.traps.filter(t => t.demande_id === demandeId)
     },
-    
     totalTraps: (state) => state.traps.length
   }
 })

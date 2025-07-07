@@ -56,7 +56,14 @@ export default defineNuxtConfig({
       });
     },
   ],
-
+  plugins: [
+    '~/plugins/auth.ts'
+  ],
+  runtimeConfig: {
+    public: {
+      apiBase: 'http://localhost:8000',
+    },
+  },
   build: { transpile: ["vue-sonner", "shiki"] },
 
   typescript: {

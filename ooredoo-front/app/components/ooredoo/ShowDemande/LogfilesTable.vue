@@ -4,7 +4,7 @@
       Chargement des logfiles...
     </div>
     <div v-else-if="error" class="text-center py-8 text-red-500">
-      Erreur lors du chargement des logfiles : {{ error.message }}
+      Erreur lors du chargement des logfiles : {{ error }}
     </div>
     <div v-else-if="data && data.length > 0">
       <UiDatatable 
@@ -20,20 +20,23 @@
 </template>
 
 <script lang="ts" setup>
-import { useFetch } from '#imports'
+import { onMounted, computed } from 'vue'
+import { useLogfileStore } from '~/stores/logfile.store'
 import type { Logfile } from '~/interfaces/Logfile'
 
 const props = defineProps<{ demandeId: number }>()
+const logfileStore = useLogfileStore()
 
-const { data, pending, error } = useFetch<Logfile[]>(`/api/logfiles`, {
-  method: 'get',
-  query: { demande_id: props.demandeId, include: 'etat,monitoredby' }
+onMounted(async () => {
+  await logfileStore.fetchLogfiles()
 })
 
+const data = computed(() => logfileStore.logfilesByDemande(props.demandeId))
+const pending = computed(() => logfileStore.loading)
+const error = computed(() => logfileStore.error)
+
 const columns = [
-  { data: 'id', title: 'ID' },
   { data: 'ref', title: 'Référence' },
-  { data: 'etat_id', title: 'État ID' },
   { data: 'refComposant', title: 'Composant' },
   { data: 'rgSgSiCluster', title: 'Cluster' },
   { data: 'logfile', title: 'Fichier' },
@@ -42,12 +45,10 @@ const columns = [
   { data: 'formatLogfile', title: 'Format' },
   { data: 'separateur', title: 'Séparateur' },
   { data: 'intervalleDePolling', title: 'Intervalle' },
-  { data: 'monitoredBy_id', title: 'Monitoré par ID' },
   { data: 'fourniEnAnnexe', title: 'Annexe' },
   { data: 'refService', title: 'Service' },
   { data: 'nomTemplate', title: 'Template' },
   { data: 'logConditions', title: 'Conditions' },
-  { data: 'demande_id', title: 'Demande ID' },
   { data: 'etat.nom', title: 'État' },
   { data: 'monitoredby.nom', title: 'Monitoré par' }
 ]

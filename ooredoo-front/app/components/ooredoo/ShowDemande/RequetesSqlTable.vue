@@ -4,7 +4,7 @@
       Chargement des requêtes SQL...
     </div>
     <div v-else-if="error" class="text-center py-8 text-red-500">
-      Erreur lors du chargement des requêtes SQL : {{ error.message }}
+      Erreur lors du chargement des requêtes SQL : {{ error }}
     </div>
     <div v-else-if="data && data.length > 0">
       <UiDatatable 
@@ -20,35 +20,35 @@
 </template>
 
 <script lang="ts" setup>
-import { useFetch } from '#imports'
+import { onMounted, computed } from 'vue'
+import { useRequeteSqlStore } from '~/stores/requeteSql.store'
 import type { RequeteSQL } from '~/interfaces/RequeteSQL'
 
 const props = defineProps<{ demandeId: number }>()
+const requeteSqlStore = useRequeteSqlStore()
 
-const { data, pending, error } = useFetch<RequeteSQL[]>(`/api/requetessqls`, {
-  method: 'get',
-  query: { demande_id: props.demandeId, include: 'etat,criticite,monitoredby' }
+onMounted(async () => {
+  await requeteSqlStore.fetchRequetes()
 })
 
+const data = computed(() => requeteSqlStore.requetesByDemande(props.demandeId))
+const pending = computed(() => requeteSqlStore.loading)
+const error = computed(() => requeteSqlStore.error)
+
 const columns = [
-  { data: 'id', title: 'ID' },
   { data: 'ref', title: 'Référence' },
-  { data: 'etat_id', title: 'État ID' },
   { data: 'refComposant', title: 'Composant' },
   { data: 'rgSgSiCluster', title: 'Cluster' },
   { data: 'requeteSql', title: 'Requête SQL' },
   { data: 'usernameDbName', title: 'Utilisateur DB' },
   { data: 'resultatAttenduDeLaRequete', title: 'Résultat attendu' },
   { data: 'performAction', title: 'Action' },
-  { data: 'criticite_id', title: 'Criticité ID' },
   { data: 'messageAlarme', title: 'Message Alarme' },
   { data: 'instructions', title: 'Instructions' },
   { data: 'intervalleDePolling', title: 'Intervalle' },
   { data: 'refService', title: 'Service' },
   { data: 'objet', title: 'Objet' },
-  { data: 'monitoredBy_id', title: 'Monitoré par ID' },
   { data: 'nomTemplate', title: 'Template' },
-  { data: 'demande_id', title: 'Demande ID' },
   { data: 'etat.nom', title: 'État' },
   { data: 'criticite.nom', title: 'Criticité' },
   { data: 'monitoredby.nom', title: 'Monitoré par' }

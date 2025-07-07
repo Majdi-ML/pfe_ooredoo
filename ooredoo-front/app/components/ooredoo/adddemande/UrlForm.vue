@@ -1,12 +1,17 @@
-<!-- C:\Users\majdi\Desktop\Stage_pfe_ooredoo\ooredoo-front\app\components\ooredoo\adddemande\UrlForm.vue -->
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useUrlStore } from '@/stores/url.store'
 import { useEnumStore } from '@/stores/enumStore'
+import { useDemandeStore } from '@/stores/demande.store'
+import { useServeurStore } from '@/stores/serveur.store'
+import type { Serveur } from '@/interfaces/Serveur'
+import type { Demande } from '@/interfaces/Demande'
 
-defineProps<{ demandeId: number | null }>()
+const props = defineProps<{ demandeId: number | null }>()
 const urlStore = useUrlStore()
 const enumStore = useEnumStore()
+const demandeStore = useDemandeStore()
+const serveurStore = useServeurStore()
 
 const form = ref({
   ref: '',
@@ -24,11 +29,53 @@ const form = ref({
   monitoredBy_id: null as number | null,
   nomTemplate: '',
   demande_id: null as number | null,
-  serveurs_ids: null as number | null
+  serveurs_ids: [] as number[]
 })
 
+const errorMessage = ref<string | null>(null)
+
+onMounted(async () => {
+  await enumStore.fetchAllEnums()
+  await urlStore.fetchUrls()
+  if (props.demandeId) {
+    await demandeStore.fetchDemandeById(props.demandeId)
+    await fetchServeursByPlatform()
+  }
+})
+
+const currentPlatformServiceId = computed(() => {
+  return (demandeStore.currentDemande as Demande)?.serviceplatfom_id || null
+})
+
+const serveurs = ref<Serveur[]>([])
+const fetchServeursByPlatform = async () => {
+  if (!props.demandeId || !currentPlatformServiceId.value) {
+    errorMessage.value = 'No platform service selected for this demande'
+    return
+  }
+  try {
+    await serveurStore.fetchServeurs()
+    serveurs.value = serveurStore.serveurs.filter(
+      (serveur: Serveur) => serveur.serviceplatfom_id === currentPlatformServiceId.value
+    )
+    if (serveurs.value.length === 0) {
+      errorMessage.value = 'No servers found for the selected platform'
+    }
+  } catch (error: unknown) {
+    errorMessage.value = error instanceof Error ? error.message : 'Error fetching servers'
+    console.error('Error fetching servers:', error)
+  }
+}
+
 const submitForm = async () => {
-  if (!props.demandeId) return
+  if (!props.demandeId) {
+    errorMessage.value = 'No demande ID provided'
+    return
+  }
+  if (!form.value.ref || form.value.serveurs_ids.length === 0) {
+    errorMessage.value = 'Reference and servers are required'
+    return
+  }
   try {
     form.value.demande_id = props.demandeId
     await urlStore.createUrl(form.value)
@@ -48,24 +95,28 @@ const submitForm = async () => {
       monitoredBy_id: null,
       nomTemplate: '',
       demande_id: props.demandeId,
-      serveurs_ids: null
+      serveurs_ids: []
     }
+    errorMessage.value = null
     await urlStore.fetchUrls()
-  } catch (error) {
-    console.error('Erreur lors de la création de l\'URL:', error)
+  } catch (error: unknown) {
+    errorMessage.value = error instanceof Error ? error.message : 'Error creating URL'
+    console.error('Error creating URL:', error)
   }
 }
-
-urlStore.fetchUrls()
-enumStore.fetchAllEnums()
 </script>
 
 <template>
   <div class="space-y-6">
     <h3 class="text-lg font-semibold">Ajouter une URL</h3>
+    
+    <div v-if="errorMessage" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+      {{ errorMessage }}
+    </div>
+
     <form class="space-y-4" @submit.prevent="submitForm">
       <div>
-        <label class="block text-sm font-medium">Référence</label>
+        <label class="block text-sm font-medium">Référence*</label>
         <input
           v-model="form.ref"
           type="text"
@@ -74,7 +125,7 @@ enumStore.fetchAllEnums()
         >
       </div>
       <div>
-        <label class="block text-sm font-medium">État</label>
+        <label class="block text-sm font-medium">État*</label>
         <select
           v-model="form.etat_id"
           class="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600"
@@ -102,7 +153,27 @@ enumStore.fetchAllEnums()
         >
       </div>
       <div>
-        <label class="block text-sm font-medium">URL</label>
+        <label class="block text-sm font-medium">Serveurs concernés*</label>
+        <select
+          v-model="form.serveurs_ids"
+          multiple
+          class="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600 h-auto min-h-[42px]"
+          required
+        >
+          <option 
+            v-for="serveur in serveurs" 
+            :key="serveur.id" 
+            :value="serveur.id"
+          >
+            {{ serveur.hostname }} (ID: {{ serveur.id }})
+          </option>
+        </select>
+        <p class="text-xs text-gray-500 mt-1">
+          Maintenez Ctrl (Windows) ou Command (Mac) pour sélectionner plusieurs serveurs. Servers are filtered by the demande's platform.
+        </p>
+      </div>
+      <div>
+        <label class="block text-sm font-medium">URL*</label>
         <input
           v-model="form.url"
           type="text"
@@ -119,7 +190,7 @@ enumStore.fetchAllEnums()
         >
       </div>
       <div>
-        <label class="block text-sm font-medium">Criticité</label>
+        <label class="block text-sm font-medium">Criticité*</label>
         <select
           v-model="form.criticite_id"
           class="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600"
@@ -171,7 +242,7 @@ enumStore.fetchAllEnums()
         >
       </div>
       <div>
-        <label class="block text-sm font-medium">Monitored By</label>
+        <label class="block text-sm font-medium">Monitored By*</label>
         <select
           v-model="form.monitoredBy_id"
           class="w-full border rounded p-2 dark:bg-gray-700 dark:border-gray-600"
@@ -191,13 +262,18 @@ enumStore.fetchAllEnums()
         >
       </div>
       <div>
-        <UiButton type="submit" :disabled="urlStore.loading || !demandeId">
-          Ajouter l'URL
+        <UiButton 
+          type="submit" 
+          :disabled="urlStore.loading || !props.demandeId"
+          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+        >
+          <span v-if="urlStore.loading">Enregistrement...</span>
+          <span v-else>Ajouter l'URL</span>
         </UiButton>
       </div>
     </form>
 
-    <div v-if="demandeId" class="mt-6">
+    <div v-if="props.demandeId" class="mt-6">
       <h4 class="text-md font-medium mb-2">URLs associées à la demande</h4>
       <table class="w-full border-collapse">
         <thead>
@@ -210,7 +286,7 @@ enumStore.fetchAllEnums()
         </thead>
         <tbody>
           <tr
-            v-for="url in urlStore.urlsByDemande(demandeId)"
+            v-for="url in urlStore.urlsByDemande(props.demandeId)"
             :key="url.id"
             class="border-b"
           >
@@ -222,12 +298,13 @@ enumStore.fetchAllEnums()
                 size="sm"
                 variant="destructive"
                 @click="urlStore.deleteUrl(url.id)"
+                class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
               >
                 Supprimer
               </UiButton>
             </td>
           </tr>
-          <tr v-if="!urlStore.urlsByDemande(demandeId).length">
+          <tr v-if="!urlStore.urlsByDemande(props.demandeId).length">
             <td colspan="4" class="text-center p-4">Aucune URL associée</td>
           </tr>
         </tbody>

@@ -2,8 +2,11 @@ import { defineStore } from 'pinia'
 import axios from 'axios'
 import type { RequeteSQL, RequeteSQLCreatePayload } from '@/interfaces/RequeteSQL'
 
+axios.defaults.withCredentials = true;
+axios.defaults.withXSRFToken = true;
 const apiClient = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api',
+  baseURL: 'http://localhost:8000/api',
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json'
@@ -23,8 +26,8 @@ export const useRequeteSqlStore = defineStore('requeteSql', {
       this.loading = true
       this.error = null
       try {
-        const response = await apiClient.get('/requetessqls', {
-          params: { include: 'etat,demande,serveurs' }
+        const response = await apiClient.get('/requetessql', { // Changed from /requetessqls to /requetessql
+          params: { include: 'etat,criticite,monitoredby,demande,serveurs' } // Updated include to match controller
         })
         this.requetes = response.data
       } catch (error: any) {
@@ -37,8 +40,8 @@ export const useRequeteSqlStore = defineStore('requeteSql', {
     async fetchRequeteById(id: number) {
       this.loading = true
       try {
-        const response = await apiClient.get(`/requetessqls/${id}`, {
-          params: { include: 'etat,demande,serveurs' }
+        const response = await apiClient.get(`/requetessql/${id}`, { // Changed from /requetessqls to /requetessql
+          params: { include: 'etat,criticite,monitoredby,demande,serveurs' }
         })
         this.currentRequete = response.data
         return response.data
@@ -53,7 +56,7 @@ export const useRequeteSqlStore = defineStore('requeteSql', {
     async createRequete(payload: RequeteSQLCreatePayload) {
       this.loading = true
       try {
-        const response = await apiClient.post('/requetessqls', payload)
+        const response = await apiClient.post('/requetessql', payload) // Changed from /requetessqls to /requetessql
         this.requetes.unshift(response.data)
         return response.data
       } catch (error: any) {
@@ -68,17 +71,14 @@ export const useRequeteSqlStore = defineStore('requeteSql', {
       this.loading = true
       try {
         const { id, ...payload } = requete
-        const response = await apiClient.put(`/requetessqls/${id}`, payload)
-        
+        const response = await apiClient.put(`/requetessql/${id}`, payload) // Changed from /requetessqls to /requetessql
         const index = this.requetes.findIndex(r => r.id === id)
         if (index !== -1) {
           this.requetes[index] = response.data
         }
-        
         if (this.currentRequete?.id === id) {
           this.currentRequete = response.data
         }
-        
         return response.data
       } catch (error: any) {
         this.handleError(error, 'Error updating query')
@@ -91,9 +91,8 @@ export const useRequeteSqlStore = defineStore('requeteSql', {
     async deleteRequete(id: number) {
       this.loading = true
       try {
-        await apiClient.delete(`/requetessqls/${id}`)
+        await apiClient.delete(`/requetessql/${id}`) // Changed from /requetessqls to /requetessql
         this.requetes = this.requetes.filter(r => r.id !== id)
-        
         if (this.currentRequete?.id === id) {
           this.currentRequete = null
         }
@@ -116,11 +115,9 @@ export const useRequeteSqlStore = defineStore('requeteSql', {
     getRequeteById: (state) => (id: number) => {
       return state.requetes.find(r => r.id === id)
     },
-    
     requetesByDemande: (state) => (demandeId: number) => {
       return state.requetes.filter(r => r.demande_id === demandeId)
     },
-    
     totalRequetes: (state) => state.requetes.length
   }
 })

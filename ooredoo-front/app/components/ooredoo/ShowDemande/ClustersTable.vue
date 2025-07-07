@@ -4,7 +4,7 @@
       Chargement des clusters...
     </div>
     <div v-else-if="error" class="text-center py-8 text-red-500">
-      Erreur lors du chargement des clusters : {{ error.message }}
+      Erreur lors du chargement des clusters : {{ error }}
     </div>
     <div v-else-if="data && data.length > 0">
       <UiDatatable 

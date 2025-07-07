@@ -25,8 +25,9 @@ use App\Http\Controllers\RequetessqlController;
 use App\Http\Controllers\TrapssnmpController;
 use App\Http\Controllers\LogfilespatternController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\DiscussionController;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Broadcast;
 
 
 
@@ -42,8 +43,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user/{id}', [UserController::class, 'show']);      // Détail utilisateur
     Route::put('/user/{id}', [UserController::class, 'update']);    // Modifier utilisateur
     Route::delete('/user/{id}', [UserController::class, 'destroy']); // Supprimer utilisateur
-    Route::get('/user', [UserController::class, 'me']);               // Utilisateur connecté
-
+    Route::get('/user', [UserController::class, 'me']);
+    Route::post('/discussions', [DiscussionController::class, 'createDiscussion']);
+    Route::get('/discussions', [DiscussionController::class, 'getDiscussionByDemandeId']);
+    Route::post('/discussions/{discussionId}/messages', [DiscussionController::class, 'sendMessage']);
+    Route::get('/discussions/{discussionId}/messages', [DiscussionController::class, 'getMessages']);
 
 }
 );
